@@ -13,10 +13,13 @@ jobs:
         java-version: 21
         distribution: zulu
     - name: Build and test EL
-      run: ant -noinput deploy test-nio -Dtest.name="**/el/**/Test*.java" -Dtest.openssl.exists=false -Dtest.excludePerformance=true
+      run: |
+        ant -noinput deploy test-nio -Dtest.name="**/el/**/Test*.java" -Dtest.openssl.exists=false -Dtest.excludePerformance=true
     - name: Results
       if: always()
-      run: grep -h "Tests run" output/build/logs/TEST*.txt | sort | uniq -c | sort -rn | head -50; grep -l -E "FAILED|Errors: [1-9]|Failures: [1-9]" output/build/logs/TEST*.txt || echo "no failures"
+      run: |
+        grep -h "Tests run" output/build/logs/TEST*.txt | head -80
+        grep -l -E "FAILED|Errors: [1-9]|Failures: [1-9]" output/build/logs/TEST*.txt || echo "no failures"
     - uses: actions/upload-artifact@v4
       if: always()
       with:
