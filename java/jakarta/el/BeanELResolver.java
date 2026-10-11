@@ -38,7 +38,7 @@ public class BeanELResolver extends ELResolver {
 
     private final boolean readOnly;
 
-    private final ConcurrentCache<String,BeanProperties> cache = new ConcurrentCache<>(CACHE_SIZE);
+    private final ConcurrentCache<Class<?>,BeanProperties> cache = new ConcurrentCache<>(CACHE_SIZE);
 
     /**
      * Creates a writable instance of the standard JavaBean resolver.
@@ -189,10 +189,6 @@ public class BeanELResolver extends ELResolver {
             }
             return property;
         }
-
-        private Class<?> getType() {
-            return type;
-        }
     }
 
     abstract static class BeanProperty {
@@ -250,10 +246,10 @@ public class BeanELResolver extends ELResolver {
         Class<?> type = base.getClass();
         String prop = property.toString();
 
-        BeanProperties props = this.cache.get(type.getName());
-        if (props == null || type != props.getType()) {
+        BeanProperties props = this.cache.get(type);
+        if (props == null) {
             props = BeanSupport.getInstance().getBeanProperties(type);
-            this.cache.put(type.getName(), props);
+            this.cache.put(type, props);
         }
 
         return props.get(ctx, prop);
