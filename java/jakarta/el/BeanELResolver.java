@@ -16,6 +16,9 @@
  */
 package jakarta.el;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -81,7 +84,18 @@ public class BeanELResolver extends ELResolver {
         }
 
         context.setPropertyResolved(base, property);
-        Method m = this.property(context, base, property).read(context, base);
+        BeanProperty beanProperty = this.property(context, base, property);
+        Method m = beanProperty.read(context, base);
+        MethodHandle handle = beanProperty.readHandle(m);
+        if (handle != null) {
+            try {
+                return (Object) handle.invokeExact(base);
+            } catch (Throwable t) {
+                Util.handleThrowable(t);
+                throw new ELException(
+                        Util.message(context, "propertyReadError", base.getClass().getName(), property.toString()), t);
+            }
+        }
         try {
             return m.invoke(base, (Object[]) null);
         } catch (InvocationTargetException e) {
@@ -191,12 +205,22 @@ public class BeanELResolver extends ELResolver {
         }
     }
 
+    private static final MethodType READ_HANDLE_TYPE = MethodType.methodType(Object.class, Object.class);
+
+    private static final MethodHandle NO_HANDLE = MethodHandles.constant(Object.class, null);
+
     abstract static class BeanProperty {
         private final Class<?> type;
 
         private final Class<?> owner;
 
         private Method read;
+
+        /*
+         * The read method as a method handle of type (Object)Object, which skips the access checks of Method.invoke,
+         * or NO_HANDLE when the method cannot be accessed through the public lookup.
+         */
+        private MethodHandle readHandle;
 
         private Method write;
 
@@ -222,6 +246,19 @@ public class BeanELResolver extends ELResolver {
                 }
             }
             return this.write;
+        }
+
+        private MethodHandle readHandle(Method read) {
+            MethodHandle handle = this.readHandle;
+            if (handle == null) {
+                try {
+                    handle = MethodHandles.publicLookup().unreflect(read).asType(READ_HANDLE_TYPE);
+                } catch (IllegalAccessException e) {
+                    handle = NO_HANDLE;
+                }
+                this.readHandle = handle;
+            }
+            return handle == NO_HANDLE ? null : handle;
         }
 
         private Method read(ELContext ctx, Object base) {
