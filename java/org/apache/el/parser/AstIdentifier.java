@@ -79,9 +79,7 @@ public final class AstIdentifier extends SimpleNode {
          * because the expensive class lookup only needs to be performed in the later case. This flag tells the resolver
          * if the lookup can be skipped.
          */
-        if (parent instanceof AstValue) {
-            ctx.putContext(this.getClass(), Boolean.FALSE);
-        } else {
+        if (!(parent instanceof AstValue)) {
             ctx.putContext(this.getClass(), Boolean.TRUE);
         }
         try {
