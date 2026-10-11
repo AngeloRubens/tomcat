@@ -19,6 +19,7 @@ package org.apache.el.lang;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
 import jakarta.el.ELContext;
 import jakarta.el.ELResolver;
@@ -27,6 +28,7 @@ import jakarta.el.FunctionMapper;
 import jakarta.el.ImportHandler;
 import jakarta.el.VariableMapper;
 
+import org.apache.el.parser.AstIdentifier;
 import org.apache.el.util.MessageFactory;
 
 /**
@@ -42,6 +44,13 @@ public final class EvaluationContext extends ELContext {
     private final VariableMapper varMapper;
 
     private LambdaExpressionNestedState lambdaExpressionNestedState;
+
+    /*
+     * The context object of AstIdentifier, which it sets for every identifier it resolves (see AstIdentifier.getValue).
+     * Held here rather than in the wrapped context, so that resolving an identifier does not update the wrapped context's
+     * map twice. Resolvers are passed this context, so they see it.
+     */
+    private Object identifierContext;
 
     /**
      * Creates a new EvaluationContext wrapping the given ELContext.
@@ -77,6 +86,9 @@ public final class EvaluationContext extends ELContext {
 
     @Override
     public Object getContext(Class<?> key) {
+        if (key == AstIdentifier.class) {
+            return identifierContext;
+        }
         return elContext.getContext(key);
     }
 
@@ -92,6 +104,10 @@ public final class EvaluationContext extends ELContext {
 
     @Override
     public void putContext(Class<?> key, Object contextObject) {
+        if (key == AstIdentifier.class) {
+            identifierContext = Objects.requireNonNull(contextObject);
+            return;
+        }
         elContext.putContext(key, contextObject);
     }
 
